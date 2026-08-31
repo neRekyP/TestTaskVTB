@@ -1,6 +1,8 @@
 package com.example.stub.consumer;
 
 import com.example.stub.dto.ClientMessageDto;
+import com.example.stub.entity.ClientMessageEntity;
+import com.example.stub.service.ClientMessageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class ClientKafkaConsumer {
 
     private final ObjectMapper objectMapper;
+    private final ClientMessageService messageService;
 
     @KafkaListener(
             topics = "${app.kafka.topic.input}",
@@ -25,7 +28,6 @@ public class ClientKafkaConsumer {
             log.info("=== Получено сообщение из Kafka ===");
             log.info("Topic: {}, Partition: {}, Offset: {}",
                     record.topic(), record.partition(), record.offset());
-            log.info("Key: {}", record.key());
             log.info("Raw Value: {}", record.value());
 
             // Десериализация JSON в DTO
@@ -34,24 +36,27 @@ public class ClientKafkaConsumer {
                     ClientMessageDto.class
             );
 
-            // Валидация данных
+            // Валидация
             if (!validateMessage(message)) {
                 log.warn("Сообщение не прошло валидацию: {}", message.getMsgId());
-                acknowledgment.acknowledge(); // Подтверждаем, чтобы не зациклить
+                acknowledgment.acknowledge();
                 return;
             }
 
-            // Обработка сообщения
-            processClientMessage(message);
+            // Сохранение в БД
+            ClientMessageEntity savedEntity = messageService.saveMessage(message);
+
+            if (savedEntity != null) {
+                log.info("✅ Сообщение успешно обработано и сохранено: id={}, msg_id={}",
+                        savedEntity.getId(), savedEntity.getMsgId());
+            }
 
             // Подтверждение обработки
             acknowledgment.acknowledge();
 
-            log.info("Сообщение успешно обработано: msg_id={}", message.getMsgId());
-
         } catch (Exception e) {
-            log.error("Критическая ошибка обработки сообщения: {}", record.value(), e);
-            // Не подтверждаем — сообщение вернётся в очередь
+            log.error("❌ Критическая ошибка обработки сообщения: {}", record.value(), e);
+            // Не подтверждаем — сообщение вернётся в очередь для повторной обработки
         }
     }
 
@@ -76,23 +81,5 @@ public class ClientKafkaConsumer {
         }
 
         return true;
-    }
-
-    /**
-     * Обработка сообщения клиента
-     */
-    private void processClientMessage(ClientMessageDto message) {
-        log.info("=== ОБРАБОТКА ДАННЫХ КЛИЕНТА ===");
-        log.info("ID сообщения: {}", message.getMsgId());
-        log.info("ФИО: {}", message.getCleanFullName());
-        log.info("ИНН: {}", message.getInn());
-
-        // Здесь ваша бизнес-логика:
-        // - Сохранение в БД
-        // - Отправка в другой сервис
-        // - Вызов REST API
-        // - Запись в файл
-
-        log.info("================================");
     }
 }

@@ -1,39 +1,41 @@
 spring:
   application:
-    name: kafka-consumer-stub
+    name: client-kafka-consumer
 
+  # Настройки базы данных
+  datasource:
+    url: jdbc:postgresql://localhost:5432/client_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  # Настройки JPA/Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: validate  # validate | update | create | none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # Настройки Kafka
   kafka:
-    # Адрес Kafka брокера
     bootstrap-servers: localhost:9092
 
     consumer:
-      # Группа потребителей (все консюмеры с одинаковым groupId делят нагрузку)
-      group-id: stub-consumer-group
-
-      # Десериализация ключа и значения
+      group-id: client-consumer-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-
-      # Автоматическое подтверждение (auto-commit)
       enable-auto-commit: false
-
-      # Что делать при старте с новой группы:
-      # earliest - читать с самого начала
-      # latest - читать только новые сообщения
       auto-offset-reset: earliest
-
-      # Максимум сообщений за один poll
-      max-poll-records: 500
+      max-poll-records: 100
 
     listener:
-      # Ручное подтверждение (manual ack)
       ack-mode: manual_immediate
+      concurrency: 2
 
-      # Количество потоков для обработки
-      concurrency: 3
-
-# Настройки приложения
 app:
   kafka:
     topic:
-      input: stub-input-topic
+      input: client-data-topic
