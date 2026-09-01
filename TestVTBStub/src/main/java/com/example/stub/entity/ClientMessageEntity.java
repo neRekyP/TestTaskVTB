@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "client_messages")
+@Table(name = "messages")
 public class ClientMessageEntity {
 
     @Id

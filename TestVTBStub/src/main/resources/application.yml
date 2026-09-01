@@ -1,30 +1,31 @@
 spring:
   application:
-    name: client-kafka-consumer
+    name: kafka-consumer-stub
 
   # Настройки базы данных
   datasource:
-    url: jdbc:postgresql://localhost:5432/client_db
+    url: jdbc:postgresql://localhost:5432/postgres
     username: postgres
-    password: postgres
+    password: mysecretpassword
     driver-class-name: org.postgresql.Driver
 
   # Настройки JPA/Hibernate
   jpa:
     hibernate:
-      ddl-auto: validate  # validate | update | create | none
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        use_sql_comments: true
 
   # Настройки Kafka
   kafka:
     bootstrap-servers: localhost:9092
 
     consumer:
-      group-id: client-consumer-group
+      group-id: stub-consumer-group
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       enable-auto-commit: false
@@ -33,9 +34,17 @@ spring:
 
     listener:
       ack-mode: manual_immediate
-      concurrency: 2
+      concurrency: ${app.kafka.consumers:2}
 
 app:
   kafka:
     topic:
-      input: client-data-topic
+      input: DEN.TESTKAFKATOP10.V1
+    consumers: 2
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.kafka: DEBUG
+    com.example.stub: DEBUG

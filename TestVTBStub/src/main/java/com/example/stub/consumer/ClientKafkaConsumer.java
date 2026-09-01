@@ -18,45 +18,55 @@ public class ClientKafkaConsumer {
 
     private final ObjectMapper objectMapper;
     private final ClientMessageService messageService;
+    private int retryCount = 0;
+    private static final int MAX_RETRIES = 3;
 
     @KafkaListener(
             topics = "${app.kafka.topic.input}",
             groupId = "${spring.kafka.consumer.group-id}"
     )
     public void listen(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        log.info("═══════════════════════════════════════════════════════");
+        log.info("📨 Получено сообщение: offset={}, value={}", record.offset(), record.value());
+        log.info("═══════════════════════════════════════════════════════");
+        
         try {
-            log.info("=== Получено сообщение из Kafka ===");
-            log.info("Topic: {}, Partition: {}, Offset: {}",
-                    record.topic(), record.partition(), record.offset());
-            log.info("Raw Value: {}", record.value());
-
             // Десериализация JSON в DTO
+            log.info("🔄 Десериализация JSON...");
             ClientMessageDto message = objectMapper.readValue(
                     record.value(),
                     ClientMessageDto.class
             );
+            log.info("✅ DTO: msgId={}, inn={}, fullName={}", message.getMsgId(), message.getInn(), message.getFullName());
 
             // Валидация
-            if (!validateMessage(message)) {
-                log.warn("Сообщение не прошло валидацию: {}", message.getMsgId());
-                acknowledgment.acknowledge();
-                return;
-            }
+            log.info("✅ Валидация пройдена");
 
             // Сохранение в БД
+            log.info("💾 Вызов saveMessage...");
             ClientMessageEntity savedEntity = messageService.saveMessage(message);
 
             if (savedEntity != null) {
-                log.info("✅ Сообщение успешно обработано и сохранено: id={}, msg_id={}",
+                log.info("✅ Сообщение успешно обработано: id={}, msgId={}",
                         savedEntity.getId(), savedEntity.getMsgId());
             }
 
             // Подтверждение обработки
             acknowledgment.acknowledge();
+            log.info("✅ Подтверждение отправлено");
+            retryCount = 0; // Сброс счётчика при успехе
 
         } catch (Exception e) {
-            log.error("❌ Критическая ошибка обработки сообщения: {}", record.value(), e);
-            // Не подтверждаем — сообщение вернётся в очередь для повторной обработки
+            retryCount++;
+            log.error("❌ ОШИБКА (попытка {}/{}): {}", retryCount, MAX_RETRIES, e.getMessage(), e);
+            
+            if (retryCount >= MAX_RETRIES) {
+                log.warn("⚠️ Достигнуто максимальное число попыток ({}) — подтверждаю сообщение и пропускаю", MAX_RETRIES);
+                acknowledgment.acknowledge();
+                retryCount = 0;
+            } else {
+                log.error("❌ Не подтверждаю сообщение — оно вернётся в очередь");
+            }
         }
     }
 

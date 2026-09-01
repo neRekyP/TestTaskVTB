@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -20,23 +22,31 @@ public class ClientMessageService {
      */
     @Transactional
     public ClientMessageEntity saveMessage(ClientMessageDto dto) {
-        // Проверка на дубликат
-        if (repository.existsByMsgId(dto.getMsgId())) {
+        log.info("📥 saveMessage: msgId={}, inn={}, fullName={}", dto.getMsgId(), dto.getInn(), dto.getFullName());
+        
+        // Проверка на дубликат через findByMsgId
+        log.info("🔍 Проверка на дубликат: findByMsgId({})", dto.getMsgId());
+        Optional<ClientMessageEntity> existing = repository.findByMsgId(dto.getMsgId());
+        log.info("📋 Результат findByMsgId: {}", existing.isPresent() ? "найдено" : "не найдено");
+        
+        if (existing.isPresent()) {
             log.warn("Сообщение с msg_id={} уже существует в БД", dto.getMsgId());
-            return repository.findByMsgId(dto.getMsgId()).orElse(null);
+            return existing.get();
         }
 
         // Создаём entity из DTO
+        log.info("🏗 Создание entity: msgId={}, fullName={}, inn={}", dto.getMsgId(), dto.getCleanFullName(), dto.getInn());
         ClientMessageEntity entity = new ClientMessageEntity(
                 dto.getMsgId(),
                 dto.getCleanFullName(), // Убираем пробелы
                 dto.getInn()
         );
+        log.info("📝 Entity время: {}", entity.getTime());
 
         // Сохраняем в БД
+        log.info("💾 Сохранение в БД...");
         ClientMessageEntity saved = repository.save(entity);
-
-        log.info("Сохранено в БД: id={}, msg_id={}, full_name={}, inn={}, time={}",
+        log.info("✅ Сохранено: id={}, msgId={}, full_name={}, inn={}, time={}",
                 saved.getId(),
                 saved.getMsgId(),
                 saved.getFullName(),
