@@ -40,7 +40,7 @@ app:
   kafka:
     topic:
       input: DEN.TESTKAFKATOP10.V1
-    consumers: 2
+    consumers: 5
 
 logging:
   level:
@@ -48,3 +48,21 @@ logging:
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: DEBUG
     com.example.stub: DEBUG
+
+# Настройки мониторинга
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
