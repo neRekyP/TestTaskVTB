@@ -1,9 +1,9 @@
 Documentation:
 
-The command to open the database:
-docker run --name my-postgres \
+The commands to open the database:
+1. docker run --name my-postgres \
   -e POSTGRES_PASSWORD=mysecretpassword \
   -p 5432:5432 \
   -v pgdata:/var/lib/postgresql/data \
   -d postgres:16
-  
+2. docker network connect monitoring_default my-postgres
